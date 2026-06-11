@@ -8,6 +8,7 @@ import (
 
 	"github.com/findardi/Wadi/server/internal/auth/dto"
 	"github.com/findardi/Wadi/server/internal/auth/service"
+	"github.com/findardi/Wadi/server/internal/platform/middleware"
 	"github.com/findardi/Wadi/server/internal/platform/response"
 	"github.com/findardi/Wadi/server/internal/platform/validation"
 )
@@ -82,4 +83,56 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusOK, "login success", res)
+}
+
+func (h *AuthHandler) ResendOTP(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthorized", nil)
+		return
+	}
+
+	if err := h.svc.ResendOTP(r.Context(), claims.Email); err != nil {
+		log.Printf("resend otp internal error: %v", err)
+		response.Error(w, http.StatusInternalServerError, "internal server error", nil)
+		return
+	}
+
+	response.Success(w, http.StatusOK, "resend success", nil)
+}
+
+func (h *AuthHandler) VerifyAccount(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthorized", nil)
+		return
+	}
+
+	var req dto.VerifyOtpRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid body request", nil)
+		return
+	}
+
+	if errs := validation.Validate(&req); errs != nil {
+		response.Error(w, http.StatusBadRequest, "validation failed", errs)
+		return
+	}
+
+	req.Email = claims.Email
+
+	if err := h.svc.VerifyEmail(r.Context(), req); err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidCodeOTP), errors.Is(err, service.ErrEmailAlreadyVerified):
+			response.Error(w, http.StatusBadRequest, err.Error(), nil)
+		default:
+			log.Printf("verify internal error: %v", err)
+			response.Error(w, http.StatusInternalServerError, "internal server error", nil)
+		}
+		return
+	}
+
+	response.Success(w, http.StatusOK, "verify success", nil)
 }

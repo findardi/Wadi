@@ -16,9 +16,11 @@ import (
 )
 
 var (
-	ErrEmailUnique        = errors.New("email already registered")
-	ErrUsernameUnique     = errors.New("username already registered")
-	ErrInvalidCredentials = errors.New("invalid email/username or password")
+	ErrEmailUnique          = errors.New("email already registered")
+	ErrUsernameUnique       = errors.New("username already registered")
+	ErrInvalidCredentials   = errors.New("invalid email/username or password")
+	ErrInvalidCodeOTP       = errors.New("invalid or expired OTP code")
+	ErrEmailAlreadyVerified = errors.New("email already verified")
 )
 
 type AuthService struct {
@@ -136,6 +138,7 @@ func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (dto.
 	claims := token.JwtClaims{
 		ID:       uuidString(user.ID),
 		Username: deref(user.Username),
+		Email:    user.Email,
 		Status:   user.Status,
 	}
 
@@ -153,6 +156,93 @@ func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (dto.
 		Token:        accessToken,
 		RefreshToken: refreshToken,
 	}, nil
+}
+
+func (s *AuthService) ResendOTP(ctx context.Context, email string) error {
+	email = strings.ToLower(strings.TrimSpace(email))
+
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+
+	if user.Status != "pending" {
+		return nil
+	}
+
+	code := s.otp.Generate()
+	if _, err := s.repo.UpdateUserToken(ctx, authdb.UpdateUserTokenParams{
+		UserID:   user.ID,
+		Type:     "email_verification",
+		CodeHash: s.otp.Hash(code),
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  time.Now().Add(5 * time.Minute),
+			Valid: true,
+		},
+	}); err != nil {
+		return fmt.Errorf("update otp: %w", err)
+	}
+
+	// TODO: kirim OTP ke email. TODO: hapus log saat mailer siap.
+	fmt.Println("Code:", code)
+
+	return nil
+}
+
+func (s *AuthService) VerifyEmail(ctx context.Context, req dto.VerifyOtpRequest) error {
+	email := strings.ToLower(strings.TrimSpace(req.Email))
+
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvalidCodeOTP
+	}
+	if err != nil {
+		return fmt.Errorf("get user: %w", err)
+	}
+
+	if user.Status != "pending" {
+		return ErrEmailAlreadyVerified
+	}
+
+	otp, err := s.repo.GetValidUserToken(ctx, authdb.GetValidUserTokenParams{
+		UserID: user.ID,
+		Type:   "email_verification",
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ErrInvalidCodeOTP
+	}
+	if err != nil {
+		return fmt.Errorf("get otp: %w", err)
+	}
+
+	if !s.otp.Compare(otp.CodeHash, req.Code) {
+		return ErrInvalidCodeOTP
+	}
+
+	err = s.repo.ExecTx(ctx, func(q *authdb.Queries) error {
+		if _, err := q.UpdateStatus(ctx, authdb.UpdateStatusParams{
+			ID:     user.ID,
+			Status: "active",
+		}); err != nil {
+			return fmt.Errorf("update status: %w", err)
+		}
+
+		if err := q.DeleteUserToken(ctx, authdb.DeleteUserTokenParams{
+			CodeHash: otp.CodeHash,
+			UserID:   user.ID,
+		}); err != nil {
+			return fmt.Errorf("delete token: %w", err)
+		}
+		return nil
+	})
+	if err != nil {
+		return fmt.Errorf("verify tx: %w", err)
+	}
+
+	return nil
 }
 
 func uuidString(u pgtype.UUID) string {
