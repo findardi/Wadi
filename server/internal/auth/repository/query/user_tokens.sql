@@ -13,3 +13,16 @@ insert into user_tokens
 values
     ($1, $2, $3, $4)
 returning *;
+
+-- name: UpdateUserToken :one
+update user_tokens set
+    code_hash = $2,
+    expires_at = $3,
+    used_at = null
+where
+    user_id = $1 and type = $4
+returning *;
+
+-- name: DeleteUserToken :exec
+delete from user_tokens
+where code_hash = $1 and user_id = $2;

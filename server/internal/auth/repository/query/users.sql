@@ -30,3 +30,9 @@ update users set
     updated_at = now()
 where id = $1
 returning *;
+
+-- name: UpdateStatus :one
+update users set
+    status = $2
+where id = $1
+returning *;

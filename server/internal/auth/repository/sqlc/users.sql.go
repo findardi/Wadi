@@ -173,6 +173,34 @@ func (q *Queries) GetUsersByStatus(ctx context.Context, status string) ([]User, 
 	return items, nil
 }
 
+const updateStatus = `-- name: UpdateStatus :one
+update users set
+    status = $2
+where id = $1
+returning id, email, username, password_hash, email_verified_at, status, created_at, updated_at
+`
+
+type UpdateStatusParams struct {
+	ID     pgtype.UUID `json:"id"`
+	Status string      `json:"status"`
+}
+
+func (q *Queries) UpdateStatus(ctx context.Context, arg UpdateStatusParams) (User, error) {
+	row := q.db.QueryRow(ctx, updateStatus, arg.ID, arg.Status)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.Username,
+		&i.PasswordHash,
+		&i.EmailVerifiedAt,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const updateUser = `-- name: UpdateUser :one
 update users set
     email = $2,

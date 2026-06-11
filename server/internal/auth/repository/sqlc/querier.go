@@ -13,6 +13,7 @@ import (
 type Querier interface {
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	CreateUserToken(ctx context.Context, arg CreateUserTokenParams) (UserToken, error)
+	DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error
 	GetUserByEmail(ctx context.Context, email string) (User, error)
 	GetUserById(ctx context.Context, id pgtype.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username *string) (User, error)
@@ -20,7 +21,9 @@ type Querier interface {
 	GetUsersById(ctx context.Context, dollar_1 []pgtype.UUID) ([]User, error)
 	GetUsersByStatus(ctx context.Context, status string) ([]User, error)
 	GetValidUserToken(ctx context.Context, arg GetValidUserTokenParams) (UserToken, error)
+	UpdateStatus(ctx context.Context, arg UpdateStatusParams) (User, error)
 	UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error)
+	UpdateUserToken(ctx context.Context, arg UpdateUserTokenParams) (UserToken, error)
 }
 
 var _ Querier = (*Queries)(nil)

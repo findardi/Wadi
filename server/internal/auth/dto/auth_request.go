@@ -7,7 +7,7 @@ type RegisterRequest struct {
 }
 
 type VerifyOtpRequest struct {
-	Email string `json:"email" validate:"required,email"`
+	Email string `json:"email" validate:"omitempty,email"`
 	Code  string `json:"code" validate:"required,len=6,numeric"`
 }
 

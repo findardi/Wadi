@@ -46,6 +46,21 @@ func (q *Queries) CreateUserToken(ctx context.Context, arg CreateUserTokenParams
 	return i, err
 }
 
+const deleteUserToken = `-- name: DeleteUserToken :exec
+delete from user_tokens
+where code_hash = $1 and user_id = $2
+`
+
+type DeleteUserTokenParams struct {
+	CodeHash string      `json:"code_hash"`
+	UserID   pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) DeleteUserToken(ctx context.Context, arg DeleteUserTokenParams) error {
+	_, err := q.db.Exec(ctx, deleteUserToken, arg.CodeHash, arg.UserID)
+	return err
+}
+
 const getValidUserToken = `-- name: GetValidUserToken :one
 select id, user_id, type, code_hash, expires_at, used_at, created_at from user_tokens
 where user_id = $1
@@ -63,6 +78,43 @@ type GetValidUserTokenParams struct {
 
 func (q *Queries) GetValidUserToken(ctx context.Context, arg GetValidUserTokenParams) (UserToken, error) {
 	row := q.db.QueryRow(ctx, getValidUserToken, arg.UserID, arg.Type)
+	var i UserToken
+	err := row.Scan(
+		&i.ID,
+		&i.UserID,
+		&i.Type,
+		&i.CodeHash,
+		&i.ExpiresAt,
+		&i.UsedAt,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const updateUserToken = `-- name: UpdateUserToken :one
+update user_tokens set
+    code_hash = $2,
+    expires_at = $3,
+    used_at = null
+where
+    user_id = $1 and type = $4
+returning id, user_id, type, code_hash, expires_at, used_at, created_at
+`
+
+type UpdateUserTokenParams struct {
+	UserID    pgtype.UUID        `json:"user_id"`
+	CodeHash  string             `json:"code_hash"`
+	ExpiresAt pgtype.Timestamptz `json:"expires_at"`
+	Type      string             `json:"type"`
+}
+
+func (q *Queries) UpdateUserToken(ctx context.Context, arg UpdateUserTokenParams) (UserToken, error) {
+	row := q.db.QueryRow(ctx, updateUserToken,
+		arg.UserID,
+		arg.CodeHash,
+		arg.ExpiresAt,
+		arg.Type,
+	)
 	var i UserToken
 	err := row.Scan(
 		&i.ID,
