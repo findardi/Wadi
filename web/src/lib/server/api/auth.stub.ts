@@ -21,7 +21,13 @@ interface StubUser {
 
 // Seed account so login works out of the box in stub mode (already verified).
 const users: StubUser[] = [
-	{ id: 'usr_demo', email: 'demo@wadi.app', username: 'demowadi', password: 'secret123', status: 'active' }
+	{
+		id: 'usr_demo',
+		email: 'demo@wadi.app',
+		username: 'demowadi',
+		password: 'secret123',
+		status: 'active'
+	}
 ];
 let seq = 1;
 
