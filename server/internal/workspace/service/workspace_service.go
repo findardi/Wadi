@@ -131,6 +131,7 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req dto.Workspac
 		Name:        workspace.Name,
 		Slug:        workspace.Slug,
 		Description: deref(workspace.Description),
+		Status:      workspace.Status,
 		CreatedAt:   workspace.CreatedAt.Time,
 		UpdatedAt:   workspace.UpdatedAt.Time,
 	}, nil
@@ -156,6 +157,7 @@ func (s *WorkspaceService) GetWorkspaces(ctx context.Context, userID string) ([]
 			Name:        w.Name,
 			Slug:        w.Slug,
 			Description: deref(w.Description),
+			Status:      w.Status,
 			CreatedAt:   w.CreatedAt.Time,
 			UpdatedAt:   w.UpdatedAt.Time,
 		}
@@ -186,6 +188,7 @@ func (s *WorkspaceService) GetWorkspace(ctx context.Context, workspaceID string)
 		Name:        workspace.Name,
 		Slug:        workspace.Slug,
 		Description: deref(workspace.Description),
+		Status:      workspace.Status,
 		CreatedAt:   workspace.CreatedAt.Time,
 		UpdatedAt:   workspace.UpdatedAt.Time,
 	}, nil
@@ -255,6 +258,7 @@ func (s *WorkspaceService) UpdateWorkspace(ctx context.Context, req dto.Workspac
 		Name:        w.Name,
 		Slug:        w.Slug,
 		Description: deref(w.Description),
+		Status:      w.Status,
 		CreatedAt:   w.CreatedAt.Time,
 		UpdatedAt:   w.UpdatedAt.Time,
 	}, nil
