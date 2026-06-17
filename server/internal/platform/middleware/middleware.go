@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"log"
 	"math"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/findardi/Wadi/server/internal/platform/response"
 	"github.com/findardi/Wadi/server/internal/platform/token"
+	"github.com/go-chi/chi/v5"
 )
 
 type TokenVerifier interface {
@@ -24,6 +26,16 @@ type TokenVerifier interface {
 type StatusReader interface {
 	UserStatus(ctx context.Context, userID string) (string, error)
 }
+
+// ErrResourceNotFound is returned by an OwnerResolver when the resource does
+// not exist; RequireOwner maps it to 404.
+var ErrResourceNotFound = errors.New("resource not found")
+
+// OwnerResolver resolves the owner (creator) user id of the resource identified
+// by id. Each domain (workspace, folder, ...) supplies its own resolver so the
+// middleware stays decoupled from any domain. Return ErrResourceNotFound when
+// the resource is absent.
+type OwnerResolver func(ctx context.Context, id string) (ownerID string, err error)
 
 type RateStore interface {
 	Allow(key string, limit int, window time.Duration) (allowed bool, retryAfter time.Duration)
@@ -105,6 +117,31 @@ func (m *Middleware) RequireActive(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (m *Middleware) RequireOwner(param string, resolve OwnerResolver) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromContext(r.Context())
+			if !ok {
+				response.Error(w, http.StatusUnauthorized, "unauthorized", nil)
+				return
+			}
+
+			ownerID, err := resolve(r.Context(), chi.URLParam(r, param))
+			switch {
+			case errors.Is(err, ErrResourceNotFound):
+				response.Error(w, http.StatusNotFound, "not found", nil)
+			case err != nil:
+				log.Printf("require owner internal error: %v", err)
+				response.Error(w, http.StatusInternalServerError, "internal server error", nil)
+			case ownerID != claims.ID:
+				response.Error(w, http.StatusForbidden, "forbidden", nil)
+			default:
+				next.ServeHTTP(w, r)
+			}
+		})
+	}
 }
 
 func ClaimsFromContext(ctx context.Context) (*token.JwtClaims, bool) {

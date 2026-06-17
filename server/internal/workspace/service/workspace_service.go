@@ -166,16 +166,13 @@ func (s *WorkspaceService) GetWorkspaces(ctx context.Context, userID string) ([]
 	return workspaces, nil
 }
 
-func (s *WorkspaceService) GetWorkspace(ctx context.Context, req dto.GetWorkspace) (dto.WorkspaceResponse, error) {
+func (s *WorkspaceService) GetWorkspace(ctx context.Context, workspaceID string) (dto.WorkspaceResponse, error) {
 	var uid pgtype.UUID
-	if err := uid.Scan(req.OwnerID); err != nil {
-		return dto.WorkspaceResponse{}, fmt.Errorf("parse user id: %w", err)
+	if err := uid.Scan(workspaceID); err != nil {
+		return dto.WorkspaceResponse{}, fmt.Errorf("parse workspace id: %w", err)
 	}
 
-	workspace, err := s.repo.GetWorkspaceBySlugAndOwner(ctx, workspacedb.GetWorkspaceBySlugAndOwnerParams{
-		OwnerID: uid,
-		Slug:    req.Slug,
-	})
+	workspace, err := s.repo.GetWorkspaceByID(ctx, uid)
 
 	if errors.Is(err, pgx.ErrNoRows) {
 		return dto.WorkspaceResponse{}, ErrWorkspaceNotFound

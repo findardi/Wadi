@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"context"
+	"errors"
 
 	auth "github.com/findardi/Wadi/server/internal/auth/repository"
 	"github.com/findardi/Wadi/server/internal/platform/middleware"
@@ -9,6 +10,7 @@ import (
 	"github.com/findardi/Wadi/server/internal/workspace/repository"
 	"github.com/findardi/Wadi/server/internal/workspace/service"
 	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -33,6 +35,7 @@ func (s userStatusReader) UserStatus(ctx context.Context, userID string) (string
 type Module struct {
 	handler *handler.WorkspaceHandler
 	mw      *middleware.Middleware
+	repo    *repository.Repository
 }
 
 func NewModule(pool *pgxpool.Pool, verifier middleware.TokenVerifier) *Module {
@@ -46,7 +49,27 @@ func NewModule(pool *pgxpool.Pool, verifier middleware.TokenVerifier) *Module {
 	return &Module{
 		handler: h,
 		mw:      mw,
+		repo:    r,
 	}
+}
+
+func (m *Module) workspaceOwner(ctx context.Context, id string) (string, error) {
+	var uid pgtype.UUID
+	if err := uid.Scan(id); err != nil {
+		return "", middleware.ErrResourceNotFound
+	}
+
+	ws, err := m.repo.GetWorkspaceByID(ctx, uid)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", middleware.ErrResourceNotFound
+	}
+	if err != nil {
+		return "", err
+	}
+
+	v, _ := ws.OwnerID.Value()
+	ownerID, _ := v.(string)
+	return ownerID, nil
 }
 
 func (m *Module) RegisterRoutes(r chi.Router) {
@@ -56,9 +79,15 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 
 		r.Post("/", m.handler.Create)
 		r.Get("/", m.handler.GetWorkspaces)
-		r.Post("/detail", m.handler.GetWorkspace)
-		r.Put("/", m.handler.UpdateWorkspace)
-		r.Patch("/status", m.handler.UpdateStatusWorkspace)
-		r.Delete("/", m.handler.DeleteWorkspace)
+
+		// owner-only operations on a specific workspace
+		r.Group(func(r chi.Router) {
+			r.Use(m.mw.RequireOwner("workspaceID", m.workspaceOwner))
+
+			r.Get("/{workspaceID}", m.handler.GetWorkspace)
+			r.Put("/{workspaceID}", m.handler.UpdateWorkspace)
+			r.Patch("/{workspaceID}/status", m.handler.UpdateStatusWorkspace)
+			r.Delete("/{workspaceID}", m.handler.DeleteWorkspace)
+		})
 	})
 }
