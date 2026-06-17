@@ -14,3 +14,7 @@ export async function createWorkspace(
 ): Promise<ApiResult<WorkspaceData>> {
 	return post<WorkspaceData>('/workspaces/', p, token);
 }
+
+export async function getWorkspace(token: string, id: string): Promise<ApiResult<WorkspaceData>> {
+    return get<WorkspaceData>(`/workspaces/${id}`, token)
+}

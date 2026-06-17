@@ -145,26 +145,41 @@
 			class="mt-6 divide-y divide-base-content/10 overflow-hidden rounded-box border border-base-content/10 bg-base-100"
 		>
 			{#each data.workspaces as ws (ws.id)}
-				<li
-					class="flex items-center gap-4 px-4 py-3.5 transition-colors duration-500 {ws.id ===
-					highlightId
-						? 'bg-primary/5'
-						: ''}"
-				>
-					<span
-						class="grid h-9 w-9 flex-none place-items-center rounded-field bg-primary/10 text-sm font-semibold text-primary"
-						>{ws.name.charAt(0).toUpperCase()}</span
+				<li>
+					<a
+						href="/workspace/{ws.slug}"
+						class="flex items-center gap-4 px-4 py-3.5 transition-colors duration-200 hover:bg-base-content/5 {ws.id ===
+						highlightId
+							? 'bg-primary/5'
+							: ''}"
 					>
-					<div class="min-w-0 flex-1">
-						<p class="truncate text-[0.9375rem] font-medium">{ws.name}</p>
-						<p class="truncate font-mono text-xs text-muted">{ws.slug}</p>
-					</div>
-					{#if ws.description}
-						<p class="hidden max-w-[36ch] flex-1 truncate text-sm text-muted md:block">
-							{ws.description}
-						</p>
-					{/if}
-					<span class="flex-none font-mono text-xs text-muted">{fmtDate(ws.created_at)}</span>
+						<span
+							class="grid h-9 w-9 flex-none place-items-center rounded-field bg-primary/10 text-sm font-semibold text-primary"
+							>{ws.name.charAt(0).toUpperCase()}</span
+						>
+						<div class="min-w-0 flex-1">
+							<p class="truncate text-[0.9375rem] font-medium">{ws.name}</p>
+							<p class="truncate font-mono text-xs text-muted">{ws.slug}</p>
+						</div>
+						{#if ws.description}
+							<p class="hidden max-w-[36ch] flex-1 truncate text-sm text-muted md:block">
+								{ws.description}
+							</p>
+						{/if}
+						<span class="flex-none font-mono text-xs text-muted">{fmtDate(ws.created_at)}</span>
+						<svg
+							class="h-4 w-4 flex-none text-muted"
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.6"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="m9 6 6 6-6 6" />
+						</svg>
+					</a>
 				</li>
 			{/each}
 		</ul>

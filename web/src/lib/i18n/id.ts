@@ -117,6 +117,21 @@ export const id = {
 	'ws.err.nameInvalid': 'Nama harus mengandung huruf atau angka.',
 	'ws.err.limit': 'Maksimal 3 ruang data per akun.',
 
+	// Workspace detail (/workspace/[slug])
+	'ws.detail.back': 'Ruang data',
+	'ws.detail.notFound': 'Ruang data tidak ditemukan.',
+	'ws.detail.forbidden': 'Anda tidak punya akses ke ruang data ini.',
+	'ws.detail.created': 'Dibuat',
+	'ws.detail.updated': 'Diperbarui',
+	'ws.section.overview': 'Ikhtisar',
+	'ws.section.documents': 'Dokumen',
+	'ws.section.activity': 'Aktivitas',
+	'ws.section.people': 'Anggota',
+
+	// Error page (in-app)
+	'error.title': 'Ada yang tidak beres',
+	'error.home': 'Kembali ke beranda',
+
 	// Home (post-login landing)
 	'home.welcome': 'Selamat datang, {name}',
 	'home.welcomeGeneric': 'Selamat datang di Wadi',

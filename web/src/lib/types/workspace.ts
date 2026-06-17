@@ -12,6 +12,7 @@ export interface WorkspaceData {
 	name: string;
 	slug: string;
 	description: string;
+	status: string;
 	// ISO-8601 strings over the wire (Go time.Time marshals to RFC3339).
 	created_at: string;
 	updated_at: string;
