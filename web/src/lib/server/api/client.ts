@@ -7,7 +7,7 @@ export const API_URL = env.AUTH_API_URL?.replace(/\/$/, '');
 
 // `token` attaches `Authorization: Bearer` for JWT-protected endpoints.
 async function request<T>(
-	method: 'GET' | 'POST',
+	method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
 	path: string,
 	body: unknown,
 	token?: string
@@ -49,6 +49,16 @@ export const post = <T>(path: string, body: unknown, token?: string) =>
 	request<T>('POST', path, body, token);
 
 export const get = <T>(path: string, token?: string) => request<T>('GET', path, undefined, token);
+
+export const put = <T>(path: string, body: unknown, token?: string) =>
+	request<T>('PUT', path, body, token);
+
+export const patch = <T>(path: string, body: unknown, token?: string) =>
+	request<T>('PATCH', path, body, token);
+
+// `del` (not `delete` — reserved word). Backend returns 200 + envelope, not 204.
+export const del = <T>(path: string, token?: string) =>
+	request<T>('DELETE', path, undefined, token);
 
 function translateFieldErrors(errs?: FieldError[] | null): Record<string, string> {
 	const out: Record<string, string> = {};

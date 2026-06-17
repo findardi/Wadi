@@ -3,7 +3,7 @@
 
 	type Props = {
 		type?: 'button' | 'submit';
-		variant?: 'primary' | 'ghost';
+		variant?: 'primary' | 'ghost' | 'danger';
 		loading?: boolean;
 		disabled?: boolean;
 		full?: boolean;
@@ -21,7 +21,9 @@
 		children
 	}: Props = $props();
 
-	const variantClass = $derived(variant === 'primary' ? 'btn-primary' : 'btn-ghost');
+	const variantClass = $derived(
+		variant === 'primary' ? 'btn-primary' : variant === 'danger' ? 'btn-error' : 'btn-ghost'
+	);
 </script>
 
 <button

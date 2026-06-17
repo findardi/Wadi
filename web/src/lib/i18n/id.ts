@@ -81,6 +81,92 @@ export const id = {
 	'verify.resent': 'Kode dikirim ulang.',
 	'verify.logout': 'Keluar',
 
+	// App shell (post-login, level-0 / user-scoped)
+	'app.nav.rooms': 'Ruang data',
+	'app.nav.invitations': 'Undangan',
+	'app.nav.settings': 'Pengaturan',
+	'app.nav.soon': 'Segera',
+	'app.search.placeholder': 'Cari…',
+	'app.menu.open': 'Buka menu navigasi',
+	'app.account.signedInAs': 'Masuk sebagai',
+	'app.account.logout': 'Keluar',
+
+	// Workspaces (ruang data)
+	'ws.title': 'Ruang data',
+	'ws.create': 'Buat ruang data',
+	'ws.count': '{n} ruang data',
+	'ws.limitReached': 'Anda sudah mencapai batas 3 ruang data sebagai pemilik.',
+	'ws.created': 'Ruang data "{name}" dibuat.',
+	'ws.loadError': 'Gagal memuat ruang data. Coba muat ulang halaman.',
+	'ws.empty.title': 'Belum ada ruang data',
+	'ws.empty.body':
+		'Buat ruang data pertama untuk mulai membagikan dokumen dengan akses terkontrol dan teraudit.',
+	'ws.dialog.title': 'Buat ruang data',
+	'ws.dialog.subtitle': 'Beri nama ruang data Anda.',
+	'ws.dialog.reassure':
+		'Privat secara default — akses terkontrol dan teraudit. Anda mengundang anggota setelahnya.',
+	'ws.field.name': 'Nama',
+	'ws.field.namePlaceholder': 'mis. Project Falcon',
+	'ws.field.description': 'Deskripsi',
+	'ws.field.descriptionHint': 'Opsional — ringkas tujuan ruang data ini.',
+	'ws.field.descriptionPlaceholder': 'Opsional',
+	'ws.dialog.cancel': 'Batal',
+	'ws.dialog.submit': 'Buat',
+	'ws.dialog.submitting': 'Membuat…',
+	'ws.err.nameTaken': 'Nama ruang data sudah dipakai.',
+	'ws.err.nameInvalid': 'Nama harus mengandung huruf atau angka.',
+	'ws.err.limit': 'Maksimal 3 ruang data per akun.',
+	'ws.err.invalidStatus': 'Status tidak valid.',
+
+	// Workspace detail (/workspace/[slug])
+	'ws.detail.back': 'Ruang data',
+	'ws.detail.notFound': 'Ruang data tidak ditemukan.',
+	'ws.detail.forbidden': 'Anda tidak punya akses ke ruang data ini.',
+	'ws.detail.created': 'Dibuat',
+	'ws.detail.updated': 'Diperbarui',
+	'ws.section.overview': 'Ikhtisar',
+	'ws.section.documents': 'Dokumen',
+	'ws.section.activity': 'Aktivitas',
+	'ws.section.people': 'Anggota',
+
+	// Workspace status (lifecycle)
+	'ws.status.label': 'Status',
+	'ws.status.prepare': 'Persiapan',
+	'ws.status.active': 'Aktif',
+	'ws.status.archive': 'Arsip',
+	'ws.status.hint.prepare': 'Ruang masih disiapkan — belum dibagikan ke pihak luar.',
+	'ws.status.hint.active': 'Ruang aktif — pihak dengan akses dapat membukanya.',
+	'ws.status.hint.archive': 'Ruang diarsipkan — hanya-baca, disimpan untuk audit.',
+	'ws.status.updated': 'Status ruang data diperbarui.',
+
+	// Edit room
+	'ws.edit.open': 'Edit',
+	'ws.edit.title': 'Edit ruang data',
+	'ws.edit.submit': 'Simpan',
+	'ws.edit.saved': 'Perubahan disimpan.',
+
+	// Delete room
+	'ws.delete.open': 'Hapus',
+	'ws.delete.title': 'Hapus ruang data',
+	'ws.delete.body':
+		'Menghapus ruang data bersifat permanen — seluruh dokumen dan jejaknya hilang dan tidak dapat dipulihkan.',
+	'ws.delete.warning': 'Tindakan ini permanen. Ruang "{name}" dan seluruh isinya akan dihapus.',
+	'ws.delete.confirmLabel': 'Ketik {name} untuk konfirmasi',
+	'ws.delete.submit': 'Hapus permanen',
+	'ws.delete.submitting': 'Menghapus…',
+
+	// Error page (in-app)
+	'error.title': 'Ada yang tidak beres',
+	'error.home': 'Kembali ke beranda',
+
+	// Home (post-login landing)
+	'home.welcome': 'Selamat datang, {name}',
+	'home.welcomeGeneric': 'Selamat datang di Wadi',
+	'home.subtitle': 'Buka ruang data untuk melanjutkan, atau buat yang baru.',
+	'home.quickActions': 'Aksi cepat',
+	'home.action.workspaces': 'Ruang data',
+	'home.action.workspacesDesc': 'Kelola dan buat ruang data Anda',
+
 	'password.show': 'Tampilkan kata sandi',
 	'password.hide': 'Sembunyikan kata sandi',
 
