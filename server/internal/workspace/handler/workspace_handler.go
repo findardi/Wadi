@@ -11,6 +11,7 @@ import (
 	"github.com/findardi/Wadi/server/internal/platform/validation"
 	"github.com/findardi/Wadi/server/internal/workspace/dto"
 	"github.com/findardi/Wadi/server/internal/workspace/service"
+	"github.com/go-chi/chi/v5"
 )
 
 const (
@@ -82,28 +83,10 @@ func (h *WorkspaceHandler) GetWorkspaces(w http.ResponseWriter, r *http.Request)
 }
 
 func (h *WorkspaceHandler) GetWorkspace(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+	// ownership already enforced by RequireOwner middleware
+	id := chi.URLParam(r, "workspaceID")
 
-	claims, ok := middleware.ClaimsFromContext(r.Context())
-	if !ok {
-		response.Error(w, http.StatusUnauthorized, "unauthorized", nil)
-		return
-	}
-
-	var req dto.GetWorkspace
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid body request", nil)
-		return
-	}
-
-	if errs := validation.Validate(&req); errs != nil {
-		response.Error(w, http.StatusBadRequest, "validation failed", errs)
-		return
-	}
-
-	req.OwnerID = claims.ID
-
-	res, err := h.svc.GetWorkspace(r.Context(), req)
+	res, err := h.svc.GetWorkspace(r.Context(), id)
 	if err != nil {
 		switch {
 		case errors.Is(err, service.ErrWorkspaceNotFound):
@@ -124,6 +107,8 @@ func (h *WorkspaceHandler) UpdateStatusWorkspace(w http.ResponseWriter, r *http.
 		response.Error(w, http.StatusBadRequest, "invalid body request", nil)
 		return
 	}
+
+	req.ID = chi.URLParam(r, "workspaceID")
 
 	if errs := validation.Validate(&req); errs != nil {
 		response.Error(w, http.StatusBadRequest, "validation failed", errs)
@@ -153,6 +138,8 @@ func (h *WorkspaceHandler) UpdateWorkspace(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	req.ID = chi.URLParam(r, "workspaceID")
+
 	if errs := validation.Validate(&req); errs != nil {
 		response.Error(w, http.StatusBadRequest, "validation failed", errs)
 		return
@@ -176,18 +163,9 @@ func (h *WorkspaceHandler) UpdateWorkspace(w http.ResponseWriter, r *http.Reques
 }
 
 func (h *WorkspaceHandler) DeleteWorkspace(w http.ResponseWriter, r *http.Request) {
-	var req dto.WorkspaceDeleteRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid body request", nil)
-		return
-	}
+	id := chi.URLParam(r, "workspaceID")
 
-	if errs := validation.Validate(&req); errs != nil {
-		response.Error(w, http.StatusBadRequest, "validation failed", errs)
-		return
-	}
-
-	if err := h.svc.DeleteWorkspace(r.Context(), req.ID); err != nil {
+	if err := h.svc.DeleteWorkspace(r.Context(), id); err != nil {
 		switch {
 		case errors.Is(err, service.ErrWorkspaceNotFound):
 			response.Error(w, http.StatusNotFound, err.Error(), nil)
