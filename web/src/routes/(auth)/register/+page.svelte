@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
-	import { Field, PasswordField, Button, Alert } from '$lib/components/common';
+	import { Field, PasswordField, Button, Alert, SsoButtons } from '$lib/components/common';
 	import { t } from '$lib/i18n';
 	import type { ActionData } from './$types';
 
@@ -28,6 +28,11 @@
 	{/if}
 
 	{#if !unlocked}
+		<!-- SSO first: one tap, no password. Avoids creating a password account that
+		     would later clash with the same SSO email (backend rejects with 409). -->
+		<SsoButtons />
+		<div class="divider text-xs text-muted">{t('login.or')}</div>
+
 		<!-- Step 1 — email only -->
 		<form
 			method="POST"

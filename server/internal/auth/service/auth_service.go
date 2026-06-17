@@ -17,13 +17,23 @@ import (
 )
 
 var (
-	ErrEmailUnique          = errors.New("email already registered")
-	ErrUsernameUnique       = errors.New("username already registered")
-	ErrInvalidCredentials   = errors.New("invalid email/username or password")
-	ErrInvalidCodeOTP       = errors.New("invalid or expired OTP code")
-	ErrEmailAlreadyVerified = errors.New("email already verified")
-	ErrInvalidRefreshToken  = errors.New("invalid or expired refresh token")
+	ErrEmailUnique            = errors.New("email already registered")
+	ErrUsernameUnique         = errors.New("username already registered")
+	ErrInvalidCredentials     = errors.New("invalid email/username or password")
+	ErrInvalidCodeOTP         = errors.New("invalid or expired OTP code")
+	ErrEmailAlreadyVerified   = errors.New("email already verified")
+	ErrInvalidRefreshToken    = errors.New("invalid or expired refresh token")
+	ErrEmailAlreadyRegistered = errors.New("email already registered, please login with password")
+	ErrSSOEmailMissing        = errors.New("no verified email available from provider")
+	ErrRefreshReuseDetected   = errors.New("refresh token reuse detected")
 )
+
+// tokenTTL maps a user_tokens.type to its lifetime.
+var tokenTTL = map[string]time.Duration{
+	"email_verification": 5 * time.Minute,
+	"password_reset":     5 * time.Minute,
+	"refresh":            24 * time.Hour,
+}
 
 type AuthService struct {
 	repo UserRepository
@@ -83,7 +93,7 @@ func (s *AuthService) RegisterUser(ctx context.Context, req dto.RegisterRequest)
 			Type:     "email_verification",
 			CodeHash: s.otp.Hash(code),
 			ExpiresAt: pgtype.Timestamptz{
-				Time:  time.Now().Add(5 * time.Minute),
+				Time:  time.Now().Add(tokenTTL["email_verification"]),
 				Valid: true,
 			},
 		}); err != nil {
@@ -148,44 +158,7 @@ func (s *AuthService) LoginUser(ctx context.Context, req dto.LoginRequest) (dto.
 		return dto.LoginResponse{}, ErrInvalidCredentials
 	}
 
-	claims := token.JwtClaims{
-		ID:       uuidString(user.ID),
-		Username: deref(user.Username),
-		Email:    user.Email,
-		Status:   user.Status,
-	}
-
-	accessToken, err := s.jwt.CreateToken(claims, token.TokenType("token_login"))
-	if err != nil {
-		return dto.LoginResponse{}, fmt.Errorf("create access token: %w", err)
-	}
-
-	// delete unused token
-	if err := s.repo.DeleteExpiredUserTokens(ctx, user.ID); err != nil {
-		return dto.LoginResponse{}, fmt.Errorf("cleanup expired tokens: %w", err)
-	}
-
-	refreshToken, err := s.otp.GenerateRefreshToken()
-	if err != nil {
-		return dto.LoginResponse{}, fmt.Errorf("generate refresh token :%w", err)
-	}
-
-	if _, err = s.repo.CreateUserToken(ctx, authdb.CreateUserTokenParams{
-		UserID:   user.ID,
-		Type:     "refresh",
-		CodeHash: s.otp.Hash(refreshToken),
-		ExpiresAt: pgtype.Timestamptz{
-			Time:  time.Now().Add(24 * time.Hour),
-			Valid: true,
-		},
-	}); err != nil {
-		return dto.LoginResponse{}, fmt.Errorf("create refresh token: %w", err)
-	}
-
-	return dto.LoginResponse{
-		Token:        accessToken,
-		RefreshToken: refreshToken,
-	}, nil
+	return s.issueToken(ctx, user)
 }
 
 func (s *AuthService) ResendOTP(ctx context.Context, email string) error {
@@ -209,7 +182,7 @@ func (s *AuthService) ResendOTP(ctx context.Context, email string) error {
 		Type:     "email_verification",
 		CodeHash: s.otp.Hash(code),
 		ExpiresAt: pgtype.Timestamptz{
-			Time:  time.Now().Add(5 * time.Minute),
+			Time:  time.Now().Add(tokenTTL["email_verification"]),
 			Valid: true,
 		},
 	}); err != nil {
@@ -302,6 +275,22 @@ func (s *AuthService) RefreshToken(ctx context.Context, req dto.RefreshTokenRequ
 		return dto.LoginResponse{}, fmt.Errorf("get refresh token: %w", err)
 	}
 
+	// reuse detection: a consumed token replayed → revoke all refresh tokens (per-user)
+	if old.UsedAt.Valid {
+		if err := s.repo.DeleteTokensByType(ctx, authdb.DeleteTokensByTypeParams{
+			UserID: old.UserID,
+			Type:   "refresh",
+		}); err != nil {
+			return dto.LoginResponse{}, fmt.Errorf("revoke refresh tokens: %w", err)
+		}
+		return dto.LoginResponse{}, ErrRefreshReuseDetected
+	}
+
+	// never used but past expiry → just invalid
+	if !old.ExpiresAt.Valid || old.ExpiresAt.Time.Before(time.Now()) {
+		return dto.LoginResponse{}, ErrInvalidRefreshToken
+	}
+
 	user, err := s.repo.GetUserById(ctx, old.UserID)
 	if err != nil {
 		return dto.LoginResponse{}, fmt.Errorf("get user: %w", err)
@@ -323,12 +312,9 @@ func (s *AuthService) RefreshToken(ctx context.Context, req dto.RefreshTokenRequ
 	}
 
 	err = s.repo.ExecTx(ctx, func(q *authdb.Queries) error {
-		if err := q.DeleteUserToken(ctx, authdb.DeleteUserTokenParams{
-			CodeHash: old.CodeHash,
-			UserID:   user.ID,
-			Type:     "refresh",
-		}); err != nil {
-			return fmt.Errorf("delete old refresh: %w", err)
+		// soft-consume: keep the row (marked used) so a replay is detectable until expiry
+		if err := q.MarkRefreshTokenUsed(ctx, old.ID); err != nil {
+			return fmt.Errorf("mark old refresh used: %w", err)
 		}
 
 		if _, err := q.CreateUserToken(ctx, authdb.CreateUserTokenParams{
@@ -336,7 +322,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, req dto.RefreshTokenRequ
 			Type:     "refresh",
 			CodeHash: s.otp.Hash(newRefresh),
 			ExpiresAt: pgtype.Timestamptz{
-				Time:  time.Now().Add(24 * time.Hour),
+				Time:  time.Now().Add(tokenTTL["refresh"]),
 				Valid: true,
 			},
 		}); err != nil {
@@ -379,7 +365,7 @@ func (s *AuthService) ForgotPassword(ctx context.Context, req dto.ForgotPassword
 			Type:     "password_reset",
 			CodeHash: s.otp.Hash(code),
 			ExpiresAt: pgtype.Timestamptz{
-				Time:  time.Now().Add(5 * time.Minute),
+				Time:  time.Now().Add(tokenTTL["password_reset"]),
 				Valid: true,
 			},
 		}); err != nil {
@@ -531,4 +517,115 @@ func deref(s *string) string {
 		return ""
 	}
 	return *s
+}
+
+type SSOIdentity struct {
+	ProviderUID   string
+	Email         string
+	EmailVerified bool
+	Username      string
+}
+
+func (s *AuthService) issueToken(ctx context.Context, user authdb.User) (dto.LoginResponse, error) {
+	claims := token.JwtClaims{
+		ID:       uuidString(user.ID),
+		Username: deref(user.Username),
+		Email:    user.Email,
+		Status:   user.Status,
+	}
+
+	accessToken, err := s.jwt.CreateToken(claims, token.TokenType("token_login"))
+	if err != nil {
+		return dto.LoginResponse{}, fmt.Errorf("create access token :%w", err)
+	}
+
+	if err := s.repo.DeleteExpiredUserTokens(ctx, user.ID); err != nil {
+		return dto.LoginResponse{}, fmt.Errorf("cleanup expired token :%w", err)
+	}
+
+	refreshToken, err := s.otp.GenerateRefreshToken()
+	if err != nil {
+		return dto.LoginResponse{}, fmt.Errorf("generate refresh token :%w", err)
+	}
+
+	if _, err := s.repo.CreateUserToken(ctx, authdb.CreateUserTokenParams{
+		UserID:   user.ID,
+		Type:     "refresh",
+		CodeHash: s.otp.Hash(refreshToken),
+		ExpiresAt: pgtype.Timestamptz{
+			Time:  time.Now().Add(tokenTTL["refresh"]),
+			Valid: true,
+		},
+	}); err != nil {
+		return dto.LoginResponse{}, fmt.Errorf("create refresh token :%w", err)
+	}
+
+	return dto.LoginResponse{
+		Token:        accessToken,
+		RefreshToken: refreshToken,
+	}, nil
+}
+
+func (s *AuthService) SSOLogin(ctx context.Context, provider string, identity SSOIdentity) (dto.LoginResponse, error) {
+	ident, err := s.repo.GetUserIdentity(ctx, authdb.GetUserIdentityParams{
+		Provider:    provider,
+		ProviderUid: identity.ProviderUID,
+	})
+
+	if err == nil {
+		user, err := s.repo.GetUserById(ctx, ident.UserID)
+		if err != nil {
+			return dto.LoginResponse{}, fmt.Errorf("get user :%w", err)
+		}
+		return s.issueToken(ctx, user)
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return dto.LoginResponse{}, fmt.Errorf("get identity :%w", err)
+	}
+
+	if identity.Email == "" || !identity.EmailVerified {
+		return dto.LoginResponse{}, ErrSSOEmailMissing
+	}
+	email := strings.ToLower(strings.TrimSpace(identity.Email))
+
+	_, err = s.repo.GetUserByEmail(ctx, email)
+	if err == nil {
+		return dto.LoginResponse{}, ErrEmailAlreadyRegistered
+	}
+
+	if !errors.Is(err, pgx.ErrNoRows) {
+		return dto.LoginResponse{}, fmt.Errorf("get user by email :%w", err)
+	}
+
+	var user authdb.User
+	if err := s.repo.ExecTx(ctx, func(q *authdb.Queries) error {
+		u, err := q.CreateUser(ctx, authdb.CreateUserParams{
+			Email:        email,
+			Username:     nil,
+			PasswordHash: nil,
+			Status:       "active",
+		})
+
+		if err != nil {
+			return fmt.Errorf("create user :%w", err)
+		}
+
+		if _, err := q.CreateUserIdentity(ctx, authdb.CreateUserIdentityParams{
+			UserID:      u.ID,
+			Provider:    provider,
+			ProviderUid: identity.ProviderUID,
+			Email:       &email,
+		}); err != nil {
+			return fmt.Errorf("create identity :%w", err)
+		}
+
+		user = u
+		return nil
+	}); err != nil {
+		return dto.LoginResponse{}, err
+	}
+
+	return s.issueToken(ctx, user)
+
 }

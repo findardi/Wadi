@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { enhance } from '$app/forms';
 	import { page } from '$app/state';
-	import { Field, PasswordField, Button, Alert } from '$lib/components/common';
+	import { Field, PasswordField, Button, Alert, SsoButtons } from '$lib/components/common';
 	import { t } from '$lib/i18n';
 	import type { ActionData } from './$types';
 
@@ -11,6 +11,15 @@
 	const registered = $derived(page.url.searchParams.get('registered') === '1');
 	const wasReset = $derived(page.url.searchParams.get('reset') === '1');
 	const verified = $derived(page.url.searchParams.get('verified') === '1');
+
+	const ssoError = $derived(page.url.searchParams.get('sso_error'));
+	const ssoMessage = $derived(
+		ssoError === 'conflict'
+			? t('login.ssoConflict')
+			: ssoError && ssoError !== 'cancelled'
+				? t('login.ssoError')
+				: ''
+	);
 </script>
 
 <svelte:head><title>{t('login.title')} · Wadi</title></svelte:head>
@@ -32,9 +41,17 @@
 	{#if verified && !form?.message}
 		<Alert variant="success">{t('login.verified')}</Alert>
 	{/if}
+	{#if ssoMessage && !form?.message}
+		<Alert variant="error">{ssoMessage}</Alert>
+	{/if}
 	{#if form?.message}
 		<Alert variant="error">{form.message}</Alert>
 	{/if}
+
+	<!-- SSO first: the fast path. Email/password is the fallback below. -->
+	<SsoButtons />
+
+	<div class="divider text-xs text-muted">{t('login.or')}</div>
 
 	<form
 		method="POST"
@@ -53,7 +70,6 @@
 			name="identifier"
 			label={t('login.identifier')}
 			autocomplete="username"
-			autofocus
 			value={form?.values?.identifier ?? ''}
 			error={form?.fieldErrors?.identifier}
 		/>

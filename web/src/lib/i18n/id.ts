@@ -21,6 +21,13 @@ export const id = {
 	'login.reset': 'Kata sandi berhasil diatur ulang. Silakan masuk.',
 	'login.verified': 'Email berhasil diverifikasi. Silakan masuk kembali.',
 	'login.forgot': 'Lupa kata sandi?',
+	'login.or': 'atau',
+	'login.ssoError': 'Gagal masuk dengan Google atau GitHub. Coba lagi.',
+	'login.ssoConflict': 'Email ini sudah terdaftar dengan kata sandi. Masuk memakai kata sandi.',
+
+	'sso.google': 'Lanjutkan dengan Google',
+	'sso.github': 'Lanjutkan dengan GitHub',
+	'sso.redirecting': 'Mengalihkan…',
 
 	'register.title': 'Buat akun Wadi',
 	'register.subtitle': 'Mulai kelola ruang data Anda dalam hitungan menit.',
