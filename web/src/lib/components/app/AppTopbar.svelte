@@ -71,7 +71,8 @@
 				class="grid h-8 w-8 place-items-center rounded-full bg-primary/12 text-sm font-semibold text-primary"
 				>{initial}</span
 			>
-			<span class="hidden max-w-[14ch] truncate text-sm font-medium sm:block">{user?.username}</span>
+			<span class="hidden max-w-[14ch] truncate text-sm font-medium sm:block">{user?.username}</span
+			>
 			<svg
 				class="hidden h-4 w-4 text-muted sm:block"
 				viewBox="0 0 24 24"

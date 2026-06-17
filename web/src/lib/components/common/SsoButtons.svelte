@@ -6,7 +6,7 @@
 	let pending = $state<Provider | null>(null);
 
 	const start = (p: Provider) => () => {
-		pending = p; 
+		pending = p;
 	};
 </script>
 
