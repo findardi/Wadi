@@ -3,6 +3,7 @@
 	import { applyAction, enhance } from '$app/forms';
 	import { invalidateAll } from '$app/navigation';
 	import type { SubmitFunction } from '@sveltejs/kit';
+	import { WorkspaceStatusBadge } from '$lib/components/app';
 	import { Alert, Button, Field, TextareaField } from '$lib/components/common';
 	import { t } from '$lib/i18n';
 	import type { WorkspaceData } from '$lib/types/workspace';
@@ -166,7 +167,10 @@
 								{ws.description}
 							</p>
 						{/if}
-						<span class="flex-none font-mono text-xs text-muted">{fmtDate(ws.created_at)}</span>
+						<WorkspaceStatusBadge status={ws.status} class="flex-none" />
+						<span class="hidden flex-none font-mono text-xs text-muted sm:inline">
+							{fmtDate(ws.created_at)}
+						</span>
 						<svg
 							class="h-4 w-4 flex-none text-muted"
 							viewBox="0 0 24 24"
@@ -221,7 +225,12 @@
 			</div>
 		{/if}
 
-		<form method="POST" action="?/create" use:enhance={submitCreate} class="mt-4 flex flex-col gap-4">
+		<form
+			method="POST"
+			action="?/create"
+			use:enhance={submitCreate}
+			class="mt-4 flex flex-col gap-4"
+		>
 			<Field
 				id="ws-name"
 				name="name"

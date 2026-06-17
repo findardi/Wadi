@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { t } from '$lib/i18n';
+	import WorkspaceStatusBadge from './WorkspaceStatusBadge.svelte';
 	import type { WorkspaceData } from '$lib/types/workspace';
 
 	type Props = { workspace: WorkspaceData };
@@ -36,7 +37,10 @@
 			class="grid h-6 w-6 flex-none place-items-center rounded-field bg-primary/10 text-xs font-semibold text-primary"
 			>{workspace.name.charAt(0).toUpperCase()}</span
 		>
-		<span class="truncate text-sm font-semibold tracking-[-0.01em]">{workspace.name}</span>
+		<div class="min-w-0">
+			<span class="block truncate text-sm font-semibold tracking-[-0.01em]">{workspace.name}</span>
+			<WorkspaceStatusBadge status={workspace.status} class="mt-0.5" />
+		</div>
 	</div>
 
 	<div class="mb-1 border-t border-base-content/10"></div>

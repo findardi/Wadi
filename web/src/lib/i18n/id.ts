@@ -116,6 +116,7 @@ export const id = {
 	'ws.err.nameTaken': 'Nama ruang data sudah dipakai.',
 	'ws.err.nameInvalid': 'Nama harus mengandung huruf atau angka.',
 	'ws.err.limit': 'Maksimal 3 ruang data per akun.',
+	'ws.err.invalidStatus': 'Status tidak valid.',
 
 	// Workspace detail (/workspace/[slug])
 	'ws.detail.back': 'Ruang data',
@@ -127,6 +128,32 @@ export const id = {
 	'ws.section.documents': 'Dokumen',
 	'ws.section.activity': 'Aktivitas',
 	'ws.section.people': 'Anggota',
+
+	// Workspace status (lifecycle)
+	'ws.status.label': 'Status',
+	'ws.status.prepare': 'Persiapan',
+	'ws.status.active': 'Aktif',
+	'ws.status.archive': 'Arsip',
+	'ws.status.hint.prepare': 'Ruang masih disiapkan — belum dibagikan ke pihak luar.',
+	'ws.status.hint.active': 'Ruang aktif — pihak dengan akses dapat membukanya.',
+	'ws.status.hint.archive': 'Ruang diarsipkan — hanya-baca, disimpan untuk audit.',
+	'ws.status.updated': 'Status ruang data diperbarui.',
+
+	// Edit room
+	'ws.edit.open': 'Edit',
+	'ws.edit.title': 'Edit ruang data',
+	'ws.edit.submit': 'Simpan',
+	'ws.edit.saved': 'Perubahan disimpan.',
+
+	// Delete room
+	'ws.delete.open': 'Hapus',
+	'ws.delete.title': 'Hapus ruang data',
+	'ws.delete.body':
+		'Menghapus ruang data bersifat permanen — seluruh dokumen dan jejaknya hilang dan tidak dapat dipulihkan.',
+	'ws.delete.warning': 'Tindakan ini permanen. Ruang "{name}" dan seluruh isinya akan dihapus.',
+	'ws.delete.confirmLabel': 'Ketik {name} untuk konfirmasi',
+	'ws.delete.submit': 'Hapus permanen',
+	'ws.delete.submitting': 'Menghapus…',
 
 	// Error page (in-app)
 	'error.title': 'Ada yang tidak beres',
