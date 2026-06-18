@@ -38,9 +38,9 @@ type Module struct {
 	repo    *repository.Repository
 }
 
-func NewModule(pool *pgxpool.Pool, verifier middleware.TokenVerifier) *Module {
+func NewModule(pool *pgxpool.Pool, verifier middleware.TokenVerifier, access service.AccessService) *Module {
 	r := repository.New(pool)
-	s := service.NewWorkspaceService(r)
+	s := service.NewWorkspaceService(r, access)
 	h := handler.NewWorkspaceHandler(s)
 
 	// RateLimit is unused for workspace routes, so no limiter is wired.
