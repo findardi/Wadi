@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	workspacedb "github.com/findardi/Wadi/server/internal/workspace/repository/sqlc"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -20,14 +21,17 @@ func New(pool *pgxpool.Pool) *Repository {
 	}
 }
 
-func (r *Repository) ExecTx(ctx context.Context, fn func(*workspacedb.Queries) error) error {
+// ExecTx menjalankan fn dalam satu transaksi. Selain *workspacedb.Queries,
+// raw pgx.Tx ikut diberikan agar domain lain (mis. access) bisa menumpang
+// transaksi yang sama lewat accessdb.New(tx).
+func (r *Repository) ExecTx(ctx context.Context, fn func(*workspacedb.Queries, pgx.Tx) error) error {
 	tx, err := r.pool.Begin(ctx)
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer tx.Rollback(ctx)
 
-	if err := fn(r.Queries.WithTx(tx)); err != nil {
+	if err := fn(r.Queries.WithTx(tx), tx); err != nil {
 		return err
 	}
 

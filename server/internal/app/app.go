@@ -10,6 +10,8 @@ import (
 	"syscall"
 	"time"
 
+	accessrepo "github.com/findardi/Wadi/server/internal/access/repository"
+	accessservice "github.com/findardi/Wadi/server/internal/access/service"
 	"github.com/findardi/Wadi/server/internal/auth"
 	"github.com/findardi/Wadi/server/internal/platform/config"
 	"github.com/findardi/Wadi/server/internal/platform/oauth"
@@ -42,8 +44,13 @@ func New(pool *pgxpool.Pool, otpSecret, addr, jwtSecret string) *App {
 		"github": oauth.NewGithub(ghCfg.ClientID, ghCfg.ClientSecret, ghCfg.RedirectURL),
 		"google": oauth.NewGoogle(ggCfg.ClientID, ggCfg.ClientSecret, ggCfg.RedirectURL),
 	}
+
+	// service
+	accessSvc := accessservice.NewAccessService(accessrepo.New(pool), mailer)
+
+	// module
 	authModule := auth.NewModule(pool, otpGen, jwtGen, mailer, limiter, providers)
-	workspaceModule := workspace.NewModule(pool, jwtGen)
+	workspaceModule := workspace.NewModule(pool, jwtGen, accessSvc)
 
 	r := chi.NewRouter()
 	registerGlobalMiddleware(r)

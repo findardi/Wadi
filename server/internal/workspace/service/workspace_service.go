@@ -32,12 +32,14 @@ var (
 var slugInvalidChars = regexp.MustCompile(`[^a-z0-9]+`)
 
 type WorkspaceService struct {
-	repo WorkspaceRepository
+	repo   WorkspaceRepository
+	access AccessService
 }
 
-func NewWorkspaceService(repo WorkspaceRepository) *WorkspaceService {
+func NewWorkspaceService(repo WorkspaceRepository, access AccessService) *WorkspaceService {
 	return &WorkspaceService{
-		repo: repo,
+		repo:   repo,
+		access: access,
 	}
 }
 
@@ -114,15 +116,30 @@ func (s *WorkspaceService) CreateWorkspace(ctx context.Context, req dto.Workspac
 		desc = &req.Description
 	}
 
-	workspace, err := s.repo.CreateWorkspace(ctx, workspacedb.CreateWorkspaceParams{
-		OwnerID:     uid,
-		Name:        req.Name,
-		Slug:        slug,
-		Description: desc,
-		Status:      StatusPrepare,
+	// create workspace + seed system roles dalam satu transaksi (atomik):
+	// gagal di seeding -> workspace ikut rollback, tidak ada workspace tanpa role.
+	var workspace workspacedb.Workspace
+	err = s.repo.ExecTx(ctx, func(q *workspacedb.Queries, tx pgx.Tx) error {
+		w, err := q.CreateWorkspace(ctx, workspacedb.CreateWorkspaceParams{
+			OwnerID:     uid,
+			Name:        req.Name,
+			Slug:        slug,
+			Description: desc,
+			Status:      StatusPrepare,
+		})
+		if err != nil {
+			return fmt.Errorf("create workspace: %w", err)
+		}
+
+		if err := s.access.SeedSystemRoles(ctx, tx, w.ID); err != nil {
+			return fmt.Errorf("seed system roles: %w", err)
+		}
+
+		workspace = w
+		return nil
 	})
 	if err != nil {
-		return dto.WorkspaceResponse{}, fmt.Errorf("create workspace: %w", err)
+		return dto.WorkspaceResponse{}, err
 	}
 
 	return dto.WorkspaceResponse{
