@@ -117,6 +117,31 @@ func (q *Queries) GetMember(ctx context.Context, id pgtype.UUID) (GetMemberRow, 
 	return i, err
 }
 
+const getMemberByWorkspaceUser = `-- name: GetMemberByWorkspaceUser :one
+select id, workspace_id, user_id, role_id, status, created_at, updated_at from workspace_members
+where workspace_id = $1 and user_id = $2
+`
+
+type GetMemberByWorkspaceUserParams struct {
+	WorkspaceID pgtype.UUID `json:"workspace_id"`
+	UserID      pgtype.UUID `json:"user_id"`
+}
+
+func (q *Queries) GetMemberByWorkspaceUser(ctx context.Context, arg GetMemberByWorkspaceUserParams) (WorkspaceMember, error) {
+	row := q.db.QueryRow(ctx, getMemberByWorkspaceUser, arg.WorkspaceID, arg.UserID)
+	var i WorkspaceMember
+	err := row.Scan(
+		&i.ID,
+		&i.WorkspaceID,
+		&i.UserID,
+		&i.RoleID,
+		&i.Status,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
 const getMembers = `-- name: GetMembers :many
 select 
     m.id, m.workspace_id, m.user_id, m.role_id, m.status, m.created_at, m.updated_at,

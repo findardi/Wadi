@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"log"
@@ -9,6 +8,7 @@ import (
 
 	"github.com/findardi/Wadi/server/internal/access/dto"
 	"github.com/findardi/Wadi/server/internal/access/service"
+	"github.com/findardi/Wadi/server/internal/platform/middleware"
 	"github.com/findardi/Wadi/server/internal/platform/permission"
 	"github.com/findardi/Wadi/server/internal/platform/response"
 	"github.com/findardi/Wadi/server/internal/platform/validation"
@@ -19,39 +19,14 @@ const (
 	MaxBodyBytes = 1 << 20
 )
 
-type AuthService interface {
-	UserExists(ctx context.Context, email string) bool
-}
-
 type AccessHandler struct {
-	svc  *service.AccessService
-	asvc AuthService
+	svc *service.AccessService
 }
 
-func NewAccessHandler(svc *service.AccessService, asvc AuthService) *AccessHandler {
+func NewAccessHandler(svc *service.AccessService) *AccessHandler {
 	return &AccessHandler{
-		svc:  svc,
-		asvc: asvc,
+		svc: svc,
 	}
-}
-
-func (h *AccessHandler) CheckUser(w http.ResponseWriter, r *http.Request) {
-	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
-
-	var req dto.CheckEmailRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		response.Error(w, http.StatusBadRequest, "invalid body request", nil)
-		return
-	}
-
-	if errs := validation.Validate(&req); errs != nil {
-		response.Error(w, http.StatusBadRequest, "validation failed", errs)
-		return
-	}
-
-	res := h.asvc.UserExists(r.Context(), req.Email)
-
-	response.Success(w, http.StatusOK, "get user exists", res)
 }
 
 func (h *AccessHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
@@ -207,6 +182,54 @@ func (h *AccessHandler) AddMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Success(w, http.StatusCreated, "add member success", res)
+}
+
+func (h *AccessHandler) AddMembers(w http.ResponseWriter, r *http.Request) {
+	r.Body = http.MaxBytesReader(w, r.Body, MaxBodyBytes)
+
+	wID := chi.URLParam(r, "workspaceID")
+
+	claims, ok := middleware.ClaimsFromContext(r.Context())
+	if !ok {
+		response.Error(w, http.StatusUnauthorized, "unauthorized", nil)
+		return
+	}
+
+	var req dto.AddMembersRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		response.Error(w, http.StatusBadRequest, "invalid body request", nil)
+		return
+	}
+
+	if errs := validation.Validate(&req); errs != nil {
+		response.Error(w, http.StatusBadRequest, "validation failed", errs)
+		return
+	}
+
+	req.WorkspaceId = wID
+	req.InvitedBy = claims.ID
+
+	res, err := h.svc.AddMembers(r.Context(), req)
+	if err != nil {
+		log.Printf("add members internal error: %v", err)
+		response.Error(w, http.StatusInternalServerError, "internal server error", nil)
+		return
+	}
+
+	response.Success(w, http.StatusOK, "invite members processed", res)
+}
+
+func (h *AccessHandler) GetInvitations(w http.ResponseWriter, r *http.Request) {
+	wID := chi.URLParam(r, "workspaceID")
+
+	res, err := h.svc.ListInvitations(r.Context(), wID)
+	if err != nil {
+		log.Printf("list invitations internal error: %v", err)
+		response.Error(w, http.StatusInternalServerError, "internal server error", nil)
+		return
+	}
+
+	response.Success(w, http.StatusOK, "get invitations success", res)
 }
 
 func (h *AccessHandler) GetMembers(w http.ResponseWriter, r *http.Request) {

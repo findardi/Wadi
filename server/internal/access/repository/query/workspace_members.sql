@@ -8,6 +8,10 @@ returning *;
 -- name: DeleteMember :exec
 delete from workspace_members where id = $1;
 
+-- name: GetMemberByWorkspaceUser :one
+select * from workspace_members
+where workspace_id = $1 and user_id = $2;
+
 -- name: GetMembers :many
 select 
     m.*,

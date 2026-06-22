@@ -25,3 +25,23 @@ type GetMemberResponse struct {
 	Email       string    `json:"email"`
 	GroupNames  []string  `json:"group_names"`
 }
+
+type AddMembersResponse struct {
+	Email   string `json:"email"`
+	Outcome string `json:"outcome"`
+	Reason  string `json:"reason,omitempty"`
+}
+
+type InvitationResponse struct {
+	ID                string    `json:"id"`
+	WorkspaceID       string    `json:"workspace_id"`
+	Email             string    `json:"email"`
+	RoleID            string    `json:"role_id"`
+	RoleName          string    `json:"role_name"`
+	UserID            string    `json:"user_id"`
+	InvitedBy         string    `json:"invited_by"`
+	InvitedByUsername string    `json:"invited_by_username"`
+	Status            string    `json:"status"`
+	ExpiresAt         time.Time `json:"expires_at"`
+	CreatedAt         time.Time `json:"created_at"`
+}
