@@ -51,13 +51,22 @@ func NewAuthService(repo UserRepository, otp OTPService, jwt JWTService, mail Ma
 	}
 }
 
-func (s *AuthService) UserExists(ctx context.Context, email string) bool {
-	_, err := s.repo.GetUserByEmail(ctx, email)
+func (s *AuthService) UserExists(ctx context.Context, email string) (dto.UserResponse, error) {
+	user, err := s.repo.GetUserByEmail(ctx, email)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return dto.UserResponse{}, nil
+	}
 	if err != nil {
-		return false
+		return dto.UserResponse{}, err
 	}
 
-	return true
+	return dto.UserResponse{
+		ID:            uuidString(user.ID),
+		Email:         user.Email,
+		Username:      deref(user.Username),
+		Status:        user.Status,
+		EmailVerified: user.EmailVerifiedAt.Valid,
+	}, nil
 }
 
 func (s *AuthService) RegisterUser(ctx context.Context, req dto.RegisterRequest) (dto.RegisterResponse, error) {

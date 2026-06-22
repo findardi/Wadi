@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
+	"strings"
+	"time"
 
 	"github.com/findardi/Wadi/server/internal/access/dto"
 	accessdb "github.com/findardi/Wadi/server/internal/access/repository/sqlc"
@@ -19,6 +22,17 @@ const (
 	MemberStatusSuspended = "suspended"
 )
 
+const (
+	InviteStatusPending = "pending"
+	inviteTTL           = 7 * 24 * time.Hour
+
+	OutcomeInvited = "invited"
+	OutcomeSkipped = "skipped"
+
+	ReasonAlreadyMember  = "already_member"
+	ReasonAlreadyInvited = "already_invited"
+)
+
 var (
 	ErrRoleNameTaken    = errors.New("role name already taken")
 	ErrRoleNotFound     = errors.New("role not found")
@@ -28,14 +42,18 @@ var (
 )
 
 type AccessService struct {
-	repo AccessRepository
-	mail MailService
+	repo  AccessRepository
+	mail  MailService
+	asvc  AuthService
+	token Tokenizer
 }
 
-func NewAccessService(repo AccessRepository, mail MailService) *AccessService {
+func NewAccessService(repo AccessRepository, mail MailService, asvc AuthService, token Tokenizer) *AccessService {
 	return &AccessService{
-		repo: repo,
-		mail: mail,
+		repo:  repo,
+		mail:  mail,
+		asvc:  asvc,
+		token: token,
 	}
 }
 
@@ -178,6 +196,146 @@ func (s *AccessService) AddMember(ctx context.Context, req dto.CreateWorkspaceMe
 		CreatedAt:   member.CreatedAt.Time,
 		UpdatedAt:   member.UpdatedAt.Time,
 	}, nil
+}
+
+func (s *AccessService) AddMembers(ctx context.Context, req dto.AddMembersRequest) ([]dto.AddMembersResponse, error) {
+	outcome := []dto.AddMembersResponse{}
+
+	var wsID, roleID, inID pgtype.UUID
+	if err := wsID.Scan(req.WorkspaceId); err != nil {
+		return outcome, fmt.Errorf("parse workspace id: %w", err)
+	}
+	if err := roleID.Scan(req.RoleId); err != nil {
+		return outcome, fmt.Errorf("parse role id: %w", err)
+	}
+	if err := inID.Scan(req.InvitedBy); err != nil {
+		return outcome, fmt.Errorf("parse invited by id: %w", err)
+	}
+
+	seen := make(map[string]struct{})
+	for _, raw := range req.Email {
+		email := strings.ToLower(strings.TrimSpace(raw))
+		if email == "" {
+			continue
+		}
+		if _, dup := seen[email]; dup {
+			continue
+		}
+		seen[email] = struct{}{}
+
+		u, err := s.asvc.UserExists(ctx, email)
+		if err != nil {
+			return outcome, fmt.Errorf("check user %s: %w", email, err)
+		}
+
+		// uID stays null when the email has no account yet (invite a future user)
+		var uID pgtype.UUID
+		if u.ID != "" {
+			if err := uID.Scan(u.ID); err != nil {
+				return outcome, fmt.Errorf("parse user id: %w", err)
+			}
+
+			_, err := s.repo.GetMemberByWorkspaceUser(ctx, accessdb.GetMemberByWorkspaceUserParams{
+				WorkspaceID: wsID,
+				UserID:      uID,
+			})
+			if err == nil {
+				outcome = append(outcome, dto.AddMembersResponse{
+					Email:   email,
+					Outcome: OutcomeSkipped,
+					Reason:  ReasonAlreadyMember,
+				})
+				continue
+			}
+			if !errors.Is(err, pgx.ErrNoRows) {
+				return outcome, fmt.Errorf("check member %s: %w", email, err)
+			}
+		}
+
+		rawToken, err := s.token.GenerateRefreshToken()
+		if err != nil {
+			return outcome, fmt.Errorf("generate invite token: %w", err)
+		}
+		codeHash := s.token.Hash(rawToken)
+
+		_, err = s.repo.InsertWorkspaceInvitation(ctx, accessdb.InsertWorkspaceInvitationParams{
+			WorkspaceID: wsID,
+			Email:       email,
+			RoleID:      roleID,
+			UserID:      uID,
+			InvitedBy:   inID,
+			CodeHash:    codeHash,
+			Status:      InviteStatusPending,
+			ExpiresAt:   pgtype.Timestamptz{Time: time.Now().Add(inviteTTL), Valid: true},
+		})
+		if isUniqueViolation(err, "workspace_invitations_pending_key") {
+			outcome = append(outcome, dto.AddMembersResponse{
+				Email:   email,
+				Outcome: OutcomeSkipped,
+				Reason:  ReasonAlreadyInvited,
+			})
+			continue
+		}
+		if err != nil {
+			return outcome, fmt.Errorf("insert invitation %s: %w", email, err)
+		}
+
+		s.sendInviteEmail(email, rawToken)
+		outcome = append(outcome, dto.AddMembersResponse{
+			Email:   email,
+			Outcome: OutcomeInvited,
+		})
+	}
+
+	return outcome, nil
+}
+
+func (s *AccessService) ListInvitations(ctx context.Context, workspaceID string) ([]dto.InvitationResponse, error) {
+	invitations := []dto.InvitationResponse{}
+
+	var wsID pgtype.UUID
+	if err := wsID.Scan(workspaceID); err != nil {
+		return invitations, fmt.Errorf("parse workspace id: %w", err)
+	}
+
+	rows, err := s.repo.ListWorkspaceInvitations(ctx, accessdb.ListWorkspaceInvitationsParams{
+		WorkspaceID: wsID,
+		Status:      InviteStatusPending,
+	})
+	if err != nil {
+		return invitations, fmt.Errorf("list invitations: %w", err)
+	}
+
+	for _, r := range rows {
+		invitations = append(invitations, dto.InvitationResponse{
+			ID:                uuidString(r.ID),
+			WorkspaceID:       uuidString(r.WorkspaceID),
+			Email:             r.Email,
+			RoleID:            uuidString(r.RoleID),
+			RoleName:          deref(r.RoleName),
+			UserID:            uuidString(r.UserID),
+			InvitedBy:         uuidString(r.InvitedBy),
+			InvitedByUsername: deref(r.InvitedByUsername),
+			Status:            r.Status,
+			ExpiresAt:         r.ExpiresAt.Time,
+			CreatedAt:         r.CreatedAt.Time,
+		})
+	}
+
+	return invitations, nil
+}
+
+// sendInviteEmail fires the invite email in the background; the request ctx
+// would be cancelled, so use a fresh one. Failure is logged, not fatal.
+func (s *AccessService) sendInviteEmail(to, token string) {
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		defer cancel()
+		body := fmt.Sprintf("You have been invited to join a workspace. Use this token to accept: %s", token)
+		if err := s.mail.Send(ctx, to, "You're invited to a workspace", body); err != nil {
+			log.Printf("send invite email to %s failed: %v", to, err)
+		}
+	}()
 }
 
 func (s *AccessService) GetRoles(ctx context.Context, workspaceID string) ([]dto.WorkspaceRoleResponse, error) {

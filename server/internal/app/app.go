@@ -48,12 +48,12 @@ func New(pool *pgxpool.Pool, otpSecret, addr, jwtSecret string) *App {
 		"google": oauth.NewGoogle(ggCfg.ClientID, ggCfg.ClientSecret, ggCfg.RedirectURL),
 	}
 
-	accessSvc := accessservice.NewAccessService(accessrepo.New(pool), mailer)
 	authsvc := authservice.NewAuthService(authrepo.New(pool), otpGen, jwtGen, mailer)
+	accessSvc := accessservice.NewAccessService(accessrepo.New(pool), mailer, authsvc, otpGen)
 
 	authModule := auth.NewModule(pool, otpGen, jwtGen, mailer, limiter, providers)
 	workspaceModule := workspace.NewModule(pool, jwtGen, accessSvc)
-	accessModule := access.NewModule(pool, jwtGen, mailer, authsvc)
+	accessModule := access.NewModule(pool, jwtGen, mailer, authsvc, otpGen)
 
 	r := chi.NewRouter()
 	registerGlobalMiddleware(r)

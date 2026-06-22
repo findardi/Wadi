@@ -35,10 +35,10 @@ type Module struct {
 	mw      *middleware.Middleware
 }
 
-func NewModule(pool *pgxpool.Pool, verifier middleware.TokenVerifier, mail service.MailService, asvc handler.AuthService) *Module {
+func NewModule(pool *pgxpool.Pool, verifier middleware.TokenVerifier, mail service.MailService, asvc service.AuthService, token service.Tokenizer) *Module {
 	r := repository.New(pool)
-	s := service.NewAccessService(r, mail)
-	h := handler.NewAccessHandler(s, asvc)
+	s := service.NewAccessService(r, mail, asvc, token)
+	h := handler.NewAccessHandler(s)
 
 	mw := middleware.New(verifier, userStatusReader{repo: auth.New(pool)}, nil)
 	return &Module{
@@ -52,7 +52,6 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 		r.Use(m.mw.RequireAuth)
 		r.Use(m.mw.RequireActive)
 		r.Get("/permissions", m.handler.GetPermissions)
-		r.Post("/check", m.handler.CheckUser)
 
 		r.Route("/role", func(r chi.Router) {
 			r.Post("/{workspaceID}", m.handler.CreateRole)
@@ -64,6 +63,8 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 
 		r.Route("/member", func(r chi.Router) {
 			r.Post("/{workspaceID}", m.handler.AddMember)
+			r.Post("/{workspaceID}/invite", m.handler.AddMembers)
+			r.Get("/{workspaceID}/invite", m.handler.GetInvitations)
 			r.Get("/{workspaceID}", m.handler.GetMembers)
 			r.Get("/{workspaceID}/{memberID}", m.handler.GetMember)
 			r.Put("/{workspaceID}/{memberID}", m.handler.UpdateMember)
