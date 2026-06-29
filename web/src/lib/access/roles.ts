@@ -48,3 +48,14 @@ export function canEditWorkspace(role: string): boolean {
 export function canDeleteWorkspace(role: string): boolean {
 	return normalizeRole(role) === 'owner';
 }
+
+// Which roles the viewer may grant (when inviting or changing a member's role).
+// Mirrors the backend hardening: owner grants anything but owner; admin may only
+// grant guest (can't promote/demote into the privileged tier); guest grants none.
+// Generic so it filters both WorkspaceRoleData and any `{ name }` list.
+export function assignableRoles<T extends { name: string }>(viewerRole: string, roles: T[]): T[] {
+	const r = normalizeRole(viewerRole);
+	if (r === 'owner') return roles.filter((x) => x.name !== 'owner');
+	if (r === 'admin') return roles.filter((x) => x.name === 'guest');
+	return [];
+}

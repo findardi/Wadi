@@ -10,9 +10,8 @@
 
 	let { data, children }: LayoutProps = $props();
 
-	const canManage = $derived(
-		canManageMembers((page.data as { access?: MyAccessWorkspace }).access?.role ?? '')
-	);
+	const viewerRole = $derived((page.data as { access?: MyAccessWorkspace }).access?.role ?? '');
+	const canManage = $derived(canManageMembers(viewerRole));
 
 	const base = $derived(`/workspace/${page.params.slug}/management-access/member`);
 	const subtabs = $derived([
@@ -77,6 +76,7 @@
 <InviteDialog
 	bind:open={inviteOpen}
 	roles={data.roles}
+	{viewerRole}
 	action={`${base}/invite?/invite`}
 	pendingHref={`${base}/invite`}
 	oncompleted={(n) => n && showToast(t('member.invite.toast', { n }), 'success')}
