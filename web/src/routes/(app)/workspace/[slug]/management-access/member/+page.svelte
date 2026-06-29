@@ -5,20 +5,23 @@
 	import type { SubmitFunction } from '@sveltejs/kit';
 	import { Alert, Button, showToast } from '$lib/components/common';
 	import { roleDisplayName } from '$lib/access/permissions';
-	import { canManageMembers } from '$lib/access/roles';
+	import { assignableRoles, canManageMembers } from '$lib/access/roles';
 	import { t } from '$lib/i18n';
 	import type { MemberStatus, MyAccessWorkspace, WorkspaceMemberData } from '$lib/types/workspace';
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
 	const members = $derived(data.members);
-	const canManage = $derived(
-		canManageMembers((page.data as { access?: MyAccessWorkspace }).access?.role ?? '')
-	);
-	// Don't offer "owner" as an assignable role — one owner per room.
-	const roleOptions = $derived(data.roles.filter((r) => r.name !== 'owner'));
+	const viewerRole = $derived((page.data as { access?: MyAccessWorkspace }).access?.role ?? '');
+	const canManage = $derived(canManageMembers(viewerRole));
+	// Roles the viewer may grant: owner → all but owner; admin → guest only.
+	const roleOptions = $derived(assignableRoles(viewerRole, data.roles));
 
 	const isOwner = (m: WorkspaceMemberData) => m.user_id === data.ownerId;
+	// A member's role is changeable only if its current role is one the viewer may
+	// grant — so an admin can't demote a fellow admin (the backend rejects it too).
+	const canChangeRole = (m: WorkspaceMemberData) =>
+		canManage && !isOwner(m) && roleOptions.some((r) => r.id === m.role_id);
 	const initial = (m: WorkspaceMemberData) =>
 		(m.username || m.email || '?').charAt(0).toUpperCase();
 
@@ -146,7 +149,18 @@
 				{/if}
 			</div>
 
-			{#if owner || !canManage}
+			{#if canChangeRole(m)}
+				<select
+					bind:value={choice[m.id]}
+					onchange={(e) => requestRoleChange(m, e.currentTarget.value)}
+					aria-label={t('member.changeRole', { name: m.username || m.email })}
+					class="select select-sm w-36 flex-none"
+				>
+					{#each roleOptions as r (r.id)}
+						<option value={r.id}>{roleDisplayName(r.name)}</option>
+					{/each}
+				</select>
+			{:else}
 				<span
 					class="inline-flex flex-none items-center gap-1.5 text-sm text-muted"
 					title={owner ? t('member.role.locked') : undefined}
@@ -166,17 +180,9 @@
 						<path d="M8 11V7a4 4 0 0 1 8 0v4" />
 					</svg>
 				</span>
-			{:else}
-				<select
-					bind:value={choice[m.id]}
-					onchange={(e) => requestRoleChange(m, e.currentTarget.value)}
-					aria-label={t('member.changeRole', { name: m.username || m.email })}
-					class="select select-sm w-36 flex-none"
-				>
-					{#each roleOptions as r (r.id)}
-						<option value={r.id}>{roleDisplayName(r.name)}</option>
-					{/each}
-				</select>
+			{/if}
+
+			{#if canManage && !owner}
 				<button
 					type="button"
 					onclick={() => openRemove(m)}
