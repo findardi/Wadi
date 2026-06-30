@@ -202,20 +202,15 @@ export const en: Record<keyof Dict, string> = {
 	'ma.role': 'Roles',
 	'ma.group': 'Groups',
 
-	// roles
-	'role.count': '{n} roles',
-	'role.new': 'Create role',
+	// roles — fixed system roles (owner/admin/guest), read-only
 	'role.system': 'System',
 	'role.permCount': '{n} permissions',
-	'role.permAll': 'Full access',
 	'role.permNone': 'No permissions',
+	'role.fixedNote': 'Roles are fixed (Owner, Admin, Guest) and cannot be modified.',
 	'role.view': 'View',
-	'role.edit': 'Edit',
-	'role.delete': 'Delete',
 	'role.back': 'Back to Roles',
-	'role.empty.title': 'No custom roles yet',
-	'role.empty.body':
-		"System roles are already available. Create a custom role to tailor your team's permissions.",
+	'role.view.systemNote': 'Roles are fixed and cannot be edited or deleted.',
+	'role.field.permissions': 'Permissions',
 	// system role display names (seeded names are technical: owner/admin/…)
 	'role.sys.owner': 'Owner',
 	'role.sys.admin': 'Admin',
@@ -228,39 +223,9 @@ export const en: Record<keyof Dict, string> = {
 		'Manage members, groups, and documents. Cannot delete the room or transfer ownership.',
 	'role.desc.guest':
 		'Limited access scoped to their groups — typically view and download shared documents only.',
-	// editor
-	'role.create.title': 'Create role',
-	'role.create.desc': 'Name the role and choose the permissions it covers.',
-	'role.edit.title': 'Edit role',
-	'role.view.title': 'Role details',
-	'role.view.systemNote': 'System roles cannot be edited or deleted.',
-	'role.field.name': 'Role name',
-	'role.field.namePlaceholder': 'e.g. Financial analyst',
-	'role.field.permissions': 'Permissions',
-	'role.field.permissionsHint': 'Select at least one permission.',
-	'role.selectAll': 'Select all',
-	'role.selected': '{n} selected',
-	'role.create.submit': 'Create role',
-	'role.create.submitting': 'Creating…',
-	'role.save': 'Save changes',
-	'role.saving': 'Saving…',
-	'role.cancel': 'Cancel',
-	// delete confirm
-	'role.delete.title': 'Delete role',
-	'role.delete.warning':
-		'The role "{name}" will be permanently deleted. This action cannot be undone.',
-	'role.delete.submit': 'Delete role',
-	'role.delete.submitting': 'Deleting…',
-	// feedback
-	'role.created': 'Role created.',
-	'role.updated': 'Role updated.',
-	'role.deleted': 'Role deleted.',
 	// errors
 	'role.err.loadError': 'Could not load roles.',
 	'role.err.notFound': 'Role not found.',
-	'role.err.nameTaken': 'That role name is already taken.',
-	'role.err.inUse': 'The role is still assigned to members, so it cannot be deleted.',
-	'role.err.noPermissions': 'Select at least one permission.',
 
 	// groups
 	'group.new': 'Create group',

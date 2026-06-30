@@ -27,19 +27,7 @@ export interface WorkspaceData {
 	updated_at: string;
 }
 
-// Workspace Role
-// Wire keys mirror the Go DTO: both create and update send `permissions` (plural).
-export interface CreateWorkspaceRolePayload {
-	permissions: string[];
-	name: string;
-	is_system: boolean;
-}
-
-export interface UpdateWorkspaceRolePayload {
-	permissions: string[];
-	name: string;
-}
-
+// Workspace Role — fixed system roles (owner/admin/guest), read-only.
 export interface WorkspaceRoleData {
 	id: string;
 	workspace_id: string;

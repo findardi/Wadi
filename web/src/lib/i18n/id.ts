@@ -197,19 +197,15 @@ export const id = {
 	'ma.role': 'Peran',
 	'ma.group': 'Grup',
 
-	// roles
-	'role.count': '{n} peran',
-	'role.new': 'Buat peran',
+	// roles — fixed system roles (owner/admin/guest), read-only
 	'role.system': 'Sistem',
 	'role.permCount': '{n} izin',
-	'role.permAll': 'Akses penuh',
 	'role.permNone': 'Tanpa izin',
+	'role.fixedNote': 'Peran bersifat tetap (Pemilik, Admin, Tamu) dan tidak dapat diubah.',
 	'role.view': 'Lihat',
-	'role.edit': 'Ubah',
-	'role.delete': 'Hapus',
 	'role.back': 'Kembali ke Peran',
-	'role.empty.title': 'Belum ada peran kustom',
-	'role.empty.body': 'Peran sistem sudah tersedia. Buat peran kustom untuk menyesuaikan izin tim.',
+	'role.view.systemNote': 'Peran bersifat tetap dan tidak dapat diubah atau dihapus.',
+	'role.field.permissions': 'Izin',
 	// system role display names (seeded names are technical: owner/admin/…)
 	'role.sys.owner': 'Pemilik',
 	'role.sys.admin': 'Admin',
@@ -222,39 +218,9 @@ export const id = {
 		'Kelola anggota, grup, dan dokumen. Tidak bisa menghapus ruang atau memindahkan kepemilikan.',
 	'role.desc.guest':
 		'Akses terbatas sesuai grup — umumnya hanya melihat dan mengunduh dokumen yang dibagikan.',
-	// editor
-	'role.create.title': 'Buat peran',
-	'role.create.desc': 'Beri nama peran dan pilih izin yang dicakupnya.',
-	'role.edit.title': 'Ubah peran',
-	'role.view.title': 'Detail peran',
-	'role.view.systemNote': 'Peran sistem tidak dapat diubah atau dihapus.',
-	'role.field.name': 'Nama peran',
-	'role.field.namePlaceholder': 'mis. Analis keuangan',
-	'role.field.permissions': 'Izin',
-	'role.field.permissionsHint': 'Pilih minimal satu izin.',
-	'role.selectAll': 'Pilih semua',
-	'role.selected': '{n} dipilih',
-	'role.create.submit': 'Buat peran',
-	'role.create.submitting': 'Membuat…',
-	'role.save': 'Simpan perubahan',
-	'role.saving': 'Menyimpan…',
-	'role.cancel': 'Batal',
-	// delete confirm
-	'role.delete.title': 'Hapus peran',
-	'role.delete.warning':
-		'Peran "{name}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.',
-	'role.delete.submit': 'Hapus peran',
-	'role.delete.submitting': 'Menghapus…',
-	// feedback
-	'role.created': 'Peran dibuat.',
-	'role.updated': 'Peran diperbarui.',
-	'role.deleted': 'Peran dihapus.',
 	// errors
 	'role.err.loadError': 'Gagal memuat peran.',
 	'role.err.notFound': 'Peran tidak ditemukan.',
-	'role.err.nameTaken': 'Nama peran sudah dipakai.',
-	'role.err.inUse': 'Peran masih ditetapkan ke anggota, jadi tidak bisa dihapus.',
-	'role.err.noPermissions': 'Pilih minimal satu izin.',
 
 	// groups
 	'group.new': 'Buat grup',

@@ -47,12 +47,9 @@ var validInvitationStatuses = map[string]struct{}{
 }
 
 var (
-	ErrRoleNameTaken       = errors.New("role name already taken")
-	ErrRoleNotFound        = errors.New("role not found")
-	ErrRoleInUse           = errors.New("role is still assigned to members")
-	ErrSystemRoleImmutable = errors.New("system roles cannot be modified or deleted")
-	ErrMemberAlreadyAdd    = errors.New("user already a member of this workspace")
-	ErrMemberNotFound      = errors.New("member not found")
+	ErrRoleNotFound     = errors.New("role not found")
+	ErrMemberAlreadyAdd = errors.New("user already a member of this workspace")
+	ErrMemberNotFound   = errors.New("member not found")
 
 	ErrCannotRemoveOwner     = errors.New("the workspace owner cannot be removed")
 	ErrCannotAssignOwnerRole = errors.New("the owner role cannot be assigned")
@@ -114,14 +111,6 @@ func isUniqueViolation(err error, constraint string) bool {
 	return false
 }
 
-func isForeignKeyViolation(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		return pgErr.Code == "23503"
-	}
-	return false
-}
-
 // guardRoleAssignment enforces who may grant which privileged system role when
 // inviting or changing a member. The owner role is never assignable via the API;
 // the admin role may only be granted by the owner. Any other role (guest, custom)
@@ -136,45 +125,6 @@ func guardRoleAssignment(actorRole, targetRole string) error {
 		}
 	}
 	return nil
-}
-
-func (s *AccessService) InsertRole(ctx context.Context, req dto.CreateWorkspaceRoleRequest) (dto.WorkspaceRoleResponse, error) {
-	var uid pgtype.UUID
-	if err := uid.Scan(req.WorkspaceID); err != nil {
-		return dto.WorkspaceRoleResponse{}, fmt.Errorf("parse owner id: %w", err)
-	}
-
-	for _, r := range req.Permission {
-		if ok := permission.IsValid(r); !ok {
-			return dto.WorkspaceRoleResponse{}, fmt.Errorf("invalid permission: %s", r)
-		}
-	}
-
-	// is_system is never settable via the API; only ProvisionWorkspace seeds
-	// system roles. User-created roles are always non-system.
-	role, err := s.repo.InsertRole(ctx, accessdb.InsertRoleParams{
-		WorkspaceID: uid,
-		Name:        req.Name,
-		Permissions: req.Permission,
-		IsSystem:    false,
-	})
-
-	if isUniqueViolation(err, "workspace_roles_name_key") {
-		return dto.WorkspaceRoleResponse{}, ErrRoleNameTaken
-	}
-	if err != nil {
-		return dto.WorkspaceRoleResponse{}, fmt.Errorf("insert role: %w", err)
-	}
-
-	return dto.WorkspaceRoleResponse{
-		ID:          uuidString(role.ID),
-		WorkspaceID: uuidString(role.WorkspaceID),
-		Name:        role.Name,
-		Permissions: role.Permissions,
-		IsSystem:    role.IsSystem,
-		CreatedAt:   role.CreatedAt.Time,
-		UpdatedAt:   role.UpdatedAt.Time,
-	}, nil
 }
 
 func (s *AccessService) ProvisionWorkspace(ctx context.Context, tx pgx.Tx, workspaceID, ownerID pgtype.UUID) error {
@@ -515,77 +465,6 @@ func (s *AccessService) GetRole(ctx context.Context, roleId string) (dto.Workspa
 		CreatedAt:   role.CreatedAt.Time,
 		UpdatedAt:   role.UpdatedAt.Time,
 	}, nil
-}
-
-func (s *AccessService) UpdateRole(ctx context.Context, req dto.UpdateWorkspaceRoleRequest) (dto.WorkspaceRoleResponse, error) {
-	var roleID pgtype.UUID
-	if err := roleID.Scan(req.RoleID); err != nil {
-		return dto.WorkspaceRoleResponse{}, fmt.Errorf("parse role id: %w", err)
-	}
-
-	existing, err := s.repo.GetRole(ctx, roleID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return dto.WorkspaceRoleResponse{}, ErrRoleNotFound
-	}
-	if err != nil {
-		return dto.WorkspaceRoleResponse{}, fmt.Errorf("get role: %w", err)
-	}
-	if existing.IsSystem {
-		return dto.WorkspaceRoleResponse{}, ErrSystemRoleImmutable
-	}
-
-	role, err := s.repo.EditRole(ctx, accessdb.EditRoleParams{
-		ID:          roleID,
-		Name:        req.Name,
-		Permissions: req.Permission,
-	})
-
-	switch {
-	case errors.Is(err, pgx.ErrNoRows):
-		return dto.WorkspaceRoleResponse{}, ErrRoleNotFound
-	case isUniqueViolation(err, "workspace_roles_name_key"):
-		return dto.WorkspaceRoleResponse{}, ErrRoleNameTaken
-	case err != nil:
-		return dto.WorkspaceRoleResponse{}, fmt.Errorf("update role: %w", err)
-	}
-
-	return dto.WorkspaceRoleResponse{
-		ID:          uuidString(role.ID),
-		WorkspaceID: uuidString(role.WorkspaceID),
-		Name:        role.Name,
-		Permissions: role.Permissions,
-		IsSystem:    role.IsSystem,
-		CreatedAt:   role.CreatedAt.Time,
-		UpdatedAt:   role.UpdatedAt.Time,
-	}, nil
-}
-
-func (s *AccessService) DeleteRole(ctx context.Context, roleId string) error {
-	var roleID pgtype.UUID
-	if err := roleID.Scan(roleId); err != nil {
-		return fmt.Errorf("parse role id: %w", err)
-	}
-
-	existing, err := s.repo.GetRole(ctx, roleID)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return ErrRoleNotFound
-	}
-	if err != nil {
-		return fmt.Errorf("get role: %w", err)
-	}
-	if existing.IsSystem {
-		return ErrSystemRoleImmutable
-	}
-
-	err = s.repo.DeleteRole(ctx, roleID)
-	if isForeignKeyViolation(err) {
-		return ErrRoleInUse
-	}
-	if err != nil {
-		return fmt.Errorf("delete role: %w", err)
-	}
-
-	return nil
 }
 
 func (s *AccessService) GetMembers(ctx context.Context, workspaceID string) ([]dto.GetMemberResponse, error) {

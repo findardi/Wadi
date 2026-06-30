@@ -85,17 +85,16 @@ func (m *Module) RegisterRoutes(r chi.Router) {
 	r.Route("/access", func(r chi.Router) {
 		r.Use(m.mw.RequireAuth)
 		r.Use(m.mw.RequireActive)
+		// Read-only permission catalog — feeds the per-role permission view.
 		r.Get("/permissions", m.handler.GetPermissions)
 
 		r.Route("/workspaces/{workspaceID}", func(r chi.Router) {
 			r.Use(m.mw.RequireMember("workspaceID", m.workspaceMember))
 			r.Get("/me", m.handler.GetMyAccess)
+			// Roles are fixed system roles (owner/admin/guest); read-only via API.
 			r.Route("/roles", func(r chi.Router) {
-				r.With(m.mw.RequirePermission(permission.PermRoleCreate)).Post("/", m.handler.CreateRole)
 				r.With(m.mw.RequirePermission(permission.PermRoleView)).Get("/", m.handler.GetRoles)
 				r.With(m.mw.RequirePermission(permission.PermRoleView)).Get("/{roleID}", m.handler.GetRole)
-				r.With(m.mw.RequirePermission(permission.PermRoleEdit)).Put("/{roleID}", m.handler.UpdateRole)
-				r.With(m.mw.RequirePermission(permission.PermRoleDelete)).Delete("/{roleID}", m.handler.DeleteRole)
 			})
 
 			r.Route("/members", func(r chi.Router) {

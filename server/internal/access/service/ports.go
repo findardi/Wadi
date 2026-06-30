@@ -12,12 +12,10 @@ type AccessRepository interface {
 	AddMember(ctx context.Context, arg accessdb.AddMemberParams) (accessdb.WorkspaceMember, error)
 	CreateGroup(ctx context.Context, arg accessdb.CreateGroupParams) (accessdb.WorkspaceGroup, error)
 
-	DeleteRole(ctx context.Context, id pgtype.UUID) error
 	DeleteMember(ctx context.Context, id pgtype.UUID) error
 	DeleteGroup(ctx context.Context, id pgtype.UUID) error
 	DeleteGroupMember(ctx context.Context, arg accessdb.DeleteGroupMemberParams) error
 
-	EditRole(ctx context.Context, arg accessdb.EditRoleParams) (accessdb.WorkspaceRole, error)
 	UpdateRole(ctx context.Context, arg accessdb.UpdateRoleParams) (accessdb.WorkspaceMember, error)
 
 	GetRole(ctx context.Context, id pgtype.UUID) (accessdb.WorkspaceRole, error)
